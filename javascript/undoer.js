@@ -2,7 +2,6 @@
 // undoer
 //
 // Copyright (c) 2013, Saevon
-// Licensed under the Apache 2.0 License.
 //
 
 var undoer = {};
