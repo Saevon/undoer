@@ -7,9 +7,9 @@
 
 var undoer = {};
 
-undoer.Manager = {
+undoer.UndoHistory = {
     history: [],
-    index: 0,
+    index: -1,
 
     /*
      * manager.save(memento)
@@ -20,38 +20,49 @@ undoer.Manager = {
      */
     save: function save(memento, state) {
         if (state !== null) {
-            memento = undoer.memento(memnto, state);
+            memento = undoer.memento(memento, state);
         }
+        
+        // TODO: What if you'd already undone?
+        //   Normally this would overwrite (and wipe all future history)
+        //   Alternatively that could be a flag (error_on_overwrite or force_overwrite)
         this.history.push(memento);
 
         return this;
     },
 
     /*
-     * Returns whether there is an operatio to undo
+     * Returns whether there is an operation to undo
      *  Can be used to enable/disable undo button
      */
     can_undo: function can_undo() {
-        return (this.index <= 0);
+        // -1 Means there are no states ahead of us
+        return (this.index >= 0);
     },
 
     /*
-     * Returns whether there is an operatio to undo
+     * Returns whether there is an operation to redo
      *  Can be used to enable/disable undo button
      */
     can_redo: function can_redo() {
-        return (this.index >= this.history.length);
+        // The index points to the current "undoeable"
+        // .: if we point to the last item we cannot redo
+        return (this.index < this.history.length - 1);
     },
 
     /*
      * Undoes the next operation (if any)
      */
     undo: function undo() {
+        if (! this.can_undo()) {
+            return this;
+        }
+        
         var memento = this.history[this.index];
 
         this.index -= 1;
-        if (this.index <= 0) {
-            this.index = 0;
+        if (this.index < 0) {
+            this.index = -1;
         }
 
         memento.undo();
@@ -63,7 +74,11 @@ undoer.Manager = {
      * Redoes the next operation (if any)
      */
     redo: function redo() {
-        var memento = this.history[this.index];
+        if (! this.can_redo()) {
+            return this;
+        }
+        
+        var memento = this.history[this.index + 1];
 
         this.index += 1;
         if (this.index >= this.history.length) {
@@ -79,8 +94,10 @@ undoer.Manager = {
 /*
  * Creates a new manager, extending the given object..
  * a new object will be returned if none was supplied.
+ *
+ * Allows you to compose undo property to any Object
  */
-undoer.new_manager = function new_manager(extension) {
+undoer.UndoMixin = function UndoMixin(extension) {
     if (extension === null) {
         extension = {};
     }
@@ -90,6 +107,7 @@ undoer.new_manager = function new_manager(extension) {
 };
 
 
+// Example Memento, overwrite the undo/redo commands with the right side-effects
 undoer.Memento = {
     state: null,
     owner: null,
